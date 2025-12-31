@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="SpeakEase.RabbitMq.Consumer/SpeakEase.RabbitMq.Consumer.csproj" Id="0eff17cd-2ad7-4eb2-89d9-976c9dc66dd4" />
+  <Project Path="SpeakEase.Rabbitmq.Product/SpeakEase.Rabbitmq.Product.csproj" Id="25c98b8d-7b0f-4f6b-98db-07c681845424" />
+  <Project Path="SpeakEase.RabbitMq.Sourcegenerate/SpeakEase.RabbitMq.Sourcegenerate.csproj" Id="a78ae39a-2b20-4357-b9a1-67c117b641eb" />
+  <Project Path="SpeakEase.RabbitMq/SpeakEase.RabbitMq.csproj" />
+</Solution>

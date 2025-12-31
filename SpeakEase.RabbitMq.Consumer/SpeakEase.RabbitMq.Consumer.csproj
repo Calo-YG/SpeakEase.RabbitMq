@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    
+    <!-- 防止 Source Generator 生成文件被误提交 -->
+    <!-- 如需查看生成的代码，使用: dotnet build /p:EmitCompilerGeneratedFiles=true -->
+    <EmitCompilerGeneratedFiles Condition="'$(EmitCompilerGeneratedFiles)' == ''">false</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpeakEase.RabbitMq.Sourcegenerate\SpeakEase.RabbitMq.Sourcegenerate.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\SpeakEase.RabbitMq\SpeakEase.RabbitMq.csproj" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.11" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Configurations\rabbitmq.json">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+</Project>

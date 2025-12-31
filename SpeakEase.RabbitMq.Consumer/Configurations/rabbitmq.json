@@ -1,0 +1,9 @@
+{
+  "RabbitMqOptions": {
+    "HostName": "117.72.66.170",
+    "Port": 5672,
+    "UserName": "guest",
+    "Password": "guest",
+    "VirtualHost": "/"
+  }
+}
