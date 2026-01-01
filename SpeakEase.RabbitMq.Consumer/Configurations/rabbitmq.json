@@ -1,6 +1,6 @@
 {
   "RabbitMqOptions": {
-    "HostName": "117.72.66.170",
+    "HostName": "",
     "Port": 5672,
     "UserName": "guest",
     "Password": "guest",
