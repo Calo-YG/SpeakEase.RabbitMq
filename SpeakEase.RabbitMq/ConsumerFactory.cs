@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using SpeakEase.RabbitMq.Cache;
 using SpeakEase.RabbitMq.Connection;
 using SpeakEase.RabbitMq.Interface;
 using SpeakEase.RabbitMq.Serialization;
@@ -15,7 +14,6 @@ namespace SpeakEase.RabbitMq
     /// 负责管理 RabbitMQ 消费者的订阅和取消订阅
     /// </summary>
     internal class ConsumerFactory(
-        IConsumerRouteCache consumerRouteCache,
         IServiceProvider serviceProvider,
         IRabbitMqConnectionFactory rabbitMqConnectionFactory,
         IMessageSerializer messageSerializer,
@@ -29,7 +27,7 @@ namespace SpeakEase.RabbitMq
         /// <summary>
         /// 订阅消息
         /// </summary>
-        public async Task SubscribeAsync<TMessage>()
+        public async Task SubscribeAsync<TMessage>() where TMessage : IMessage, new()
         {
             var messageType = typeof(TMessage);
 
@@ -40,9 +38,13 @@ namespace SpeakEase.RabbitMq
                 return;
             }
 
-            // 获取路由信息
-            var routeInfo = consumerRouteCache.GetRouteInfo(messageType);
-            if (routeInfo == null)
+            // 直接从 IMessage 接口获取路由信息，完全避免反射
+            var tempMessage = new TMessage();
+            var exchangeName = tempMessage.ExchangeName;
+            var queueName = tempMessage.QueeuName;
+            var routeKey = tempMessage.RouteKey;
+
+            if (string.IsNullOrEmpty(exchangeName) || string.IsNullOrEmpty(queueName) || string.IsNullOrEmpty(routeKey))
             {
                 throw new InvalidOperationException($"消息类型 {messageType.Name} 必须标注 [Consumer] 特性");
             }
@@ -54,23 +56,23 @@ namespace SpeakEase.RabbitMq
 
                 // 声明交换机（幂等操作）
                 await channel.ExchangeDeclareAsync(
-                    exchange: routeInfo.ExchangeName,
+                    exchange: exchangeName,
                     type: ExchangeType.Direct,
                     durable: true,
                     autoDelete: false);
 
                 // 声明队列（幂等操作）
                 await channel.QueueDeclareAsync(
-                    queue: routeInfo.QueueName,
+                    queue: queueName,
                     durable: true,
                     exclusive: false,
                     autoDelete: false);
 
                 // 绑定队列到交换机
                 await channel.QueueBindAsync(
-                    queue: routeInfo.QueueName,
-                    exchange: routeInfo.ExchangeName,
-                    routingKey: routeInfo.RouteKey);
+                    queue: queueName,
+                    exchange: exchangeName,
+                    routingKey: routeKey);
 
                 // 设置 QoS（一次只处理一条消息）
                 await channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
@@ -86,7 +88,7 @@ namespace SpeakEase.RabbitMq
 
                 // 开始消费
                 var consumerTag = await channel.BasicConsumeAsync(
-                    queue: routeInfo.QueueName,
+                    queue: queueName,
                     autoAck: false, // 手动确认
                     consumer: consumer);
 
@@ -96,14 +98,16 @@ namespace SpeakEase.RabbitMq
                     Channel = channel,
                     ConsumerTag = consumerTag,
                     Consumer = consumer,
-                    RouteInfo = routeInfo
+                    ExchangeName = exchangeName,
+                    QueueName = queueName,
+                    RouteKey = routeKey
                 };
 
                 _subscriptions.TryAdd(messageType, subscription);
 
                 logger.LogInformation(
                     "成功订阅消息 - MessageType: {MessageType}, Queue: {Queue}, Exchange: {Exchange}, RouteKey: {RouteKey}",
-                    messageType.Name, routeInfo.QueueName, routeInfo.ExchangeName, routeInfo.RouteKey);
+                    messageType.Name, queueName, exchangeName, routeKey);
             }
             catch (Exception ex)
             {
@@ -140,7 +144,7 @@ namespace SpeakEase.RabbitMq
 
                 logger.LogInformation(
                     "成功取消订阅 - MessageType: {MessageType}, Queue: {Queue}",
-                    messageType.Name, subscription.RouteInfo.QueueName);
+                    messageType.Name, subscription.QueueName);
             }
             catch (Exception ex)
             {
@@ -241,7 +245,9 @@ namespace SpeakEase.RabbitMq
             public IChannel Channel { get; set; }
             public string ConsumerTag { get; set; }
             public AsyncEventingBasicConsumer Consumer { get; set; }
-            public ConsumerRouteInfo RouteInfo { get; set; }
+            public string ExchangeName { get; set; }
+            public string QueueName { get; set; }
+            public string RouteKey { get; set; }
         }
     }
 }

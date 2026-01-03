@@ -9,7 +9,7 @@ namespace SpeakEase.RabbitMq.Interface
         /// <typeparam name="Temessage"></typeparam>
         /// <param name="message"></param>
         /// <returns></returns>
-        public Task PublishAsync<Temessage>(Temessage message);
+        public Task PublishAsync<Temessage>(Temessage message) where Temessage : IMessage;
 
         /// <summary>
         /// 发布延时消息
@@ -17,6 +17,6 @@ namespace SpeakEase.RabbitMq.Interface
         /// <typeparam name="Temessage"></typeparam>
         /// <param name="message"></param>
         /// <returns></returns>
-        public Task PublishDelayAsync<Temessage>(Temessage message);
+        public Task PublishDelayAsync<Temessage>(Temessage message) where Temessage : IMessage;
     }
 }

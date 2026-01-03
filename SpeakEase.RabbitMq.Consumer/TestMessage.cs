@@ -1,9 +1,10 @@
 ﻿using SpeakEase.RabbitMq.Attributes;
+using System.Text.Json.Serialization;
 
 namespace SpeakEase.RabbitMq.Consumer
 {
     [Consumer(ExchangeName = "SpeakEase.MQ",QueueName = "SpeakEase",RouteKey ="SpeakEase.Test")]
-    public class TestMessage
+    public partial class TestMessage
     {
         public Guid MessaeId { get; set; }
 

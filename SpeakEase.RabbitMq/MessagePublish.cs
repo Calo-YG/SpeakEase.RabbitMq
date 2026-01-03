@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
-using SpeakEase.RabbitMq.Cache;
 using SpeakEase.RabbitMq.Connection;
 using SpeakEase.RabbitMq.Interface;
 using SpeakEase.RabbitMq.Serialization;
@@ -13,14 +12,13 @@ namespace SpeakEase.RabbitMq
     public class MessagePublish(
         IRabbitMqConnectionFactory connectionFactory,
         ILogger<MessagePublish> logger,
-        IConsumerRouteCache routeCache,
         IMessageSerializer serializer) : IMessagePublish
     {
 
         /// <summary>
         /// 发布消息
         /// </summary>
-        public async Task PublishAsync<Temessage>(Temessage message)
+        public async Task PublishAsync<Temessage>(Temessage message) where Temessage : IMessage
         {
             await PublishInternalAsync(message, 0, false);
         }
@@ -28,7 +26,7 @@ namespace SpeakEase.RabbitMq
         /// <summary>
         /// 发布延时消息（使用 x-delayed-message 插件）
         /// </summary>
-        public async Task PublishDelayAsync<Temessage>(Temessage message)
+        public async Task PublishDelayAsync<Temessage>(Temessage message) where Temessage:IMessage
         {
             // 默认延迟 5 秒，你可以根据需要调整或添加参数
             await PublishInternalAsync(message, 5000, true);
@@ -37,19 +35,18 @@ namespace SpeakEase.RabbitMq
         /// <summary>
         /// 内部发布方法（使用异步 API）
         /// </summary>
-        private async Task PublishInternalAsync<TMessage>(TMessage message, int delayMilliseconds, bool isDelay)
+        private async Task PublishInternalAsync<TMessage>(TMessage message, int delayMilliseconds, bool isDelay) where TMessage : IMessage
         {
-            var messageType = typeof(TMessage);
-            
-            // 从缓存中获取路由信息（避免重复反射）
-            var routeInfo = routeCache.GetRouteInfo(messageType);
+            // 直接从 IMessage 接口获取路由信息，完全避免反射
+            var exchangeName = message.ExchangeName;
+            var queueName = message.QueeuName;
+            var routeKey = message.RouteKey;
+            var messageType = message.Type;
 
-            if (routeInfo == null || 
-                string.IsNullOrEmpty(routeInfo.ExchangeName) || 
-                string.IsNullOrEmpty(routeInfo.RouteKey))
+            if (string.IsNullOrEmpty(exchangeName) || string.IsNullOrEmpty(routeKey))
             {
                 throw new InvalidOperationException(
-                    $"消息类型 {messageType.Name} 必须关联一个标注了 [Consumer] 特性的消费者类");
+                    $"消息类型 {typeof(TMessage).Name} 必须标注 [Consumer] 特性");
             }
 
             // 每次发布都创建新的 Channel（推荐做法）
@@ -70,7 +67,7 @@ namespace SpeakEase.RabbitMq
                     ContentEncoding = "utf-8",
                     Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds()),
                     MessageId = Guid.NewGuid().ToString(),
-                    Type = messageType.FullName
+                    Type = messageType
                 };
 
                 // 如果是延时消息，添加延时头
@@ -84,8 +81,8 @@ namespace SpeakEase.RabbitMq
 
                 // 使用异步 API 发布消息
                 await channel.BasicPublishAsync(
-                    exchange: routeInfo.ExchangeName,
-                    routingKey: routeInfo.RouteKey,
+                    exchange: exchangeName,
+                    routingKey: routeKey,
                     mandatory: false,
                     basicProperties: properties,
                     body: body);
@@ -94,20 +91,20 @@ namespace SpeakEase.RabbitMq
                 {
                     logger.LogInformation(
                         "成功发布延时消息 ({Delay}ms) 到 Exchange: {Exchange}, RouteKey: {RouteKey}, MessageType: {Type}",
-                        delayMilliseconds, routeInfo.ExchangeName, routeInfo.RouteKey, messageType.Name);
+                        delayMilliseconds, exchangeName, routeKey, messageType);
                 }
                 else
                 {
                     logger.LogInformation(
                         "成功发布消息到 Exchange: {Exchange}, RouteKey: {RouteKey}, MessageType: {Type}",
-                        routeInfo.ExchangeName, routeInfo.RouteKey, messageType.Name);
+                        exchangeName, routeKey, messageType);
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex,
                     "发布消息失败 - Exchange: {Exchange}, RouteKey: {RouteKey}, MessageType: {Type}",
-                    routeInfo?.ExchangeName, routeInfo?.RouteKey, messageType.Name);
+                    exchangeName, routeKey, messageType);
                 throw;
             }
             finally

@@ -9,7 +9,7 @@
         /// 订阅消息
         /// </summary>
         /// <typeparam name="TMessage">消息类型</typeparam>
-        Task SubscribeAsync<TMessage>();
+        Task SubscribeAsync<TMessage>() where TMessage : IMessage, new();
 
         /// <summary>
         /// 取消订阅消息

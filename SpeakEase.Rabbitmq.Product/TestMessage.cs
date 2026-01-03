@@ -3,7 +3,7 @@
 namespace SpeakEase.Rabbitmq.Product
 {
     [Consumer(ExchangeName = "SpeakEase.MQ",QueueName = "SpeakEase",RouteKey ="SpeakEase.Test")]
-    public class TestMessage
+    public partial class TestMessage
     {
         public Guid MessaeId { get; set; }
 
